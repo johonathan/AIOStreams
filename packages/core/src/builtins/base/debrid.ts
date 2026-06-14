@@ -73,6 +73,12 @@ export const BaseDebridConfigSchema = z.object({
 });
 export type BaseDebridConfig = z.infer<typeof BaseDebridConfigSchema>;
 
+function cleanSearchTitle(title: string): string {
+  return cleanTitle(title, {
+    umlautNormalisation: 'ascii-folding',
+  });
+}
+
 export abstract class BaseDebridAddon<T extends BaseDebridConfig> {
   abstract readonly id: string;
   abstract readonly name: string;
@@ -180,7 +186,7 @@ export abstract class BaseDebridAddon<T extends BaseDebridConfig> {
         type
       ).then((metadata) => {
         if (metadata.primaryTitle) {
-          metadata.primaryTitle = cleanTitle(metadata.primaryTitle);
+          metadata.primaryTitle = cleanSearchTitle(metadata.primaryTitle);
           this.logger.debug(
             `Cleaned primary title for ${id}: ${metadata.primaryTitle}`
           );
@@ -468,7 +474,7 @@ export abstract class BaseDebridAddon<T extends BaseDebridConfig> {
         } else if (spec === 'all') {
           metadata.titlesWithLang
             ?.slice(0, appConfig.builtins.scrape.titleLimit)
-            .forEach((t) => selected.add(cleanTitle(t.title)));
+            .forEach((t) => selected.add(cleanSearchTitle(t.title)));
           break; // no need to process further specs
         } else if (spec === 'original') {
           // First title in the content's original language (from TMDB).
@@ -477,13 +483,13 @@ export abstract class BaseDebridAddon<T extends BaseDebridConfig> {
                 (t) => t.language === metadata.originalLanguage
               )
             : undefined;
-          if (match) selected.add(cleanTitle(match.title));
+          if (match) selected.add(cleanSearchTitle(match.title));
         } else {
           // take only the first matching title.
           const match = metadata.titlesWithLang?.find(
             (t) => t.language === spec
           );
-          if (match) selected.add(cleanTitle(match.title));
+          if (match) selected.add(cleanSearchTitle(match.title));
         }
       }
       titles = [...selected];
@@ -494,7 +500,7 @@ export abstract class BaseDebridAddon<T extends BaseDebridConfig> {
     } else if (options?.useAllTitles) {
       titles = metadata.titles
         .slice(0, appConfig.builtins.scrape.titleLimit)
-        .map(cleanTitle);
+        .map((title) => cleanSearchTitle(title));
     } else {
       titles = [metadata.primaryTitle];
     }
@@ -626,7 +632,6 @@ export abstract class BaseDebridAddon<T extends BaseDebridConfig> {
           relativeAbsoluteEpisode = calculated;
         }
       }
-
 
       const parsedSeasonRecord = seasons.find(
         (s) => s.number === parsedId.season

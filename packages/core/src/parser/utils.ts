@@ -11,7 +11,20 @@ const umlautMap: Record<string, string> = {
   ö: 'oe',
   Ü: 'Ue',
   ü: 'ue',
+  ẞ: 'SS',
   ß: 'ss',
+};
+
+const asciiFoldMap: Record<string, string> = {
+  Æ: 'Ae',
+  æ: 'ae',
+  Ø: 'O',
+  ø: 'o',
+  Ð: 'D',
+  ð: 'd',
+  Þ: 'Th',
+  þ: 'th',
+  ...umlautMap,
 };
 
 type TitleMatchOptions = {
@@ -147,7 +160,7 @@ export function preprocessTitle(
 
 export function normaliseTitle(title: string) {
   return title
-    .replace(/[ÄäÖöÜüß]/g, (c) => umlautMap[c])
+    .replace(/[ÄäÖöÜüẞß]/g, (c) => umlautMap[c])
     .replace(/&/g, 'and')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -155,11 +168,23 @@ export function normaliseTitle(title: string) {
     .toLowerCase();
 }
 
-export function cleanTitle(title: string) {
-  // replace German umlauts with ASCII equivalents, then normalize to NFD
-  let cleaned = title
-    .replace(/[ÄäÖöÜüß]/g, (c) => umlautMap[c])
-    .normalize('NFD');
+type UmlautNormalisation = 'german-expansion' | 'ascii-folding';
+
+export function cleanTitle(
+  title: string,
+  options: { umlautNormalisation?: UmlautNormalisation } = {}
+) {
+  const { umlautNormalisation = 'german-expansion' } = options;
+  // Search-title cleaning follows Sonarr-style ASCII folding: decompose and
+  // strip diacritics, with explicit mappings for letters that do not decompose
+  // to ASCII (e.g. "æ" -> "ae", "ø" -> "o", "þ" -> "th").
+  let cleaned = title;
+  if (umlautNormalisation === 'german-expansion') {
+    cleaned = cleaned.replace(/[ÄäÖöÜüẞß]/g, (c) => umlautMap[c]);
+  } else {
+    cleaned = cleaned.replace(/[ÆæØøÐðÞþẞß]/g, (c) => asciiFoldMap[c]);
+  }
+  cleaned = cleaned.normalize('NFD');
 
   for (const char of ['♪', '♫', '★', '☆', '♡', '♥', '-']) {
     cleaned = cleaned.replaceAll(char, ' ');
